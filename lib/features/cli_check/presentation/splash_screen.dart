@@ -49,8 +49,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) => installed ? const HomeScreen() : const SetupScreen(),
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            installed ? const HomeScreen() : const SetupScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 500),
       ),
     );
   }
@@ -76,8 +84,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               Icon(Icons.android, size: 80, color: Colors.teal),
               SizedBox(height: 24),
               Text('Icefish', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              CircularProgressIndicator(),
             ],
           ),
         ),
