@@ -192,7 +192,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                     const Center(child: CircularProgressIndicator())
                   else
                     DropdownButtonFormField<String>(
-                      value: _selectedTemplate,
+                      initialValue: _selectedTemplate,
                       decoration: const InputDecoration(
                         labelText: 'Template',
                         border: OutlineInputBorder(),
