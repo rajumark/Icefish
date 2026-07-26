@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 
 class DocsContent extends StatefulWidget {
@@ -330,8 +331,11 @@ class _DocsContentState extends State<DocsContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -358,10 +362,10 @@ class _DocsContentState extends State<DocsContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -370,12 +374,12 @@ class _DocsContentState extends State<DocsContent> {
             ),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(spacing),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Search Documentation', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing),
                   Row(
                     children: [
                       Expanded(
@@ -390,7 +394,7 @@ class _DocsContentState extends State<DocsContent> {
                           enabled: !_busy,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: spacing * 0.5),
                       ElevatedButton.icon(
                         onPressed: _busy ? null : _searchDocs,
                         icon: _busy
@@ -404,15 +408,15 @@ class _DocsContentState extends State<DocsContent> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(spacing),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Fetch by URL', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing),
                   Row(
                     children: [
                       Expanded(
@@ -427,7 +431,7 @@ class _DocsContentState extends State<DocsContent> {
                           enabled: !_busy,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: spacing * 0.5),
                       ElevatedButton.icon(
                         onPressed: _busy ? null : _fetchDocs,
                         icon: const Icon(Icons.open_in_new),
@@ -440,10 +444,10 @@ class _DocsContentState extends State<DocsContent> {
             ),
           ),
           if (_result != null) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: spacing),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(spacing * 0.75),
                 child: Column(
                   children: [
                     Row(
@@ -460,7 +464,7 @@ class _DocsContentState extends State<DocsContent> {
                             onChanged: (v) => setState(() => _searchInResult = v),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: spacing * 0.5),
                         IconButton(
                           icon: const Icon(Icons.copy, size: 20),
                           onPressed: _copyResult,
@@ -495,12 +499,12 @@ class _DocsContentState extends State<DocsContent> {
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           if (_result != null)
             Expanded(
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(spacing),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -512,7 +516,7 @@ class _DocsContentState extends State<DocsContent> {
                             style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: spacing * 0.5),
                       Expanded(
                         child: SingleChildScrollView(
                           child: SelectableText(

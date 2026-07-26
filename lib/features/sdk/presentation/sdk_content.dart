@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 import 'package:icefish/core/widgets/confirm_dialog.dart';
 
@@ -12,15 +13,14 @@ class SdkContent extends StatefulWidget {
   State<SdkContent> createState() => _SdkContentState();
 }
 
-class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateMixin {
-  List<String> _packages = [];
-  List<String> _filteredPackages = [];
+class _SdkContentState extends State<SdkContent> {
+  List<_PackageRow> _packages = [];
+  List<_PackageRow> _filteredPackages = [];
   Set<String> _selected = {};
   bool _loading = true;
   bool _busy = false;
   StatusType _statusType = StatusType.info;
   String _status = '';
-  late TabController _tabController;
   final _searchController = TextEditingController();
   String _sortBy = 'name';
   bool _sortAsc = true;
@@ -28,14 +28,11 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() => _applyFilters());
     _loadPackages();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -57,7 +54,7 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
           !e.startsWith('Installed') &&
           !e.startsWith('Available') &&
           !e.startsWith('-')
-        ).toList();
+        ).map((line) => _PackageRow.fromRaw(line.trim())).toList();
         _applyFilters();
       } else {
         _status = result.error;
@@ -71,12 +68,24 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredPackages = _packages.where((p) {
-        final matchesSearch = query.isEmpty || p.toLowerCase().contains(query);
+        final matchesSearch = query.isEmpty ||
+            p.name.toLowerCase().contains(query) ||
+            p.type.toLowerCase().contains(query);
         return matchesSearch;
       }).toList();
 
       _filteredPackages.sort((a, b) {
-        final cmp = a.toLowerCase().compareTo(b.toLowerCase());
+        int cmp;
+        switch (_sortBy) {
+          case 'type':
+            cmp = a.type.compareTo(b.type);
+            break;
+          case 'status':
+            cmp = a.statusLabel.compareTo(b.statusLabel);
+            break;
+          default:
+            cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        }
         return _sortAsc ? cmp : -cmp;
       });
     });
@@ -84,7 +93,6 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
 
   Future<void> _installPackage(String name) async {
     if (!mounted || _busy) return;
-
     setState(() {
       _busy = true;
       _status = 'Installing $name...';
@@ -109,7 +117,6 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
 
   Future<void> _updatePackage(String name) async {
     if (!mounted || _busy) return;
-
     setState(() {
       _busy = true;
       _status = 'Updating $name...';
@@ -134,7 +141,6 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
 
   Future<void> _removePackage(String name) async {
     if (!mounted || _busy) return;
-
     final confirm = await ConfirmDialog.show(
       context: context,
       title: 'Remove Package',
@@ -142,7 +148,6 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
       confirmLabel: 'Remove',
       confirmColor: Colors.red,
     );
-
     if (!confirm) return;
 
     setState(() {
@@ -169,26 +174,25 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
 
   Future<void> _updateAllPackages() async {
     if (!mounted || _busy) return;
-
+    final toUpdate = _selected.isEmpty ? _filteredPackages : _filteredPackages.where((p) => _selected.contains(p.name)).toList();
     final confirm = await ConfirmDialog.show(
       context: context,
-      title: 'Update All Packages',
-      message: 'Update all ${_filteredPackages.length} packages?',
+      title: 'Update Packages',
+      message: 'Update ${toUpdate.length} packages?',
       confirmLabel: 'Update All',
       confirmColor: Colors.blue,
     );
-
     if (!confirm) return;
 
     setState(() {
       _busy = true;
-      _status = 'Updating all packages...';
+      _status = 'Updating ${toUpdate.length} packages...';
       _statusType = StatusType.loading;
     });
 
     int updated = 0;
-    for (final pkg in _filteredPackages) {
-      final result = await CliService.run('sdk update $pkg');
+    for (final pkg in toUpdate) {
+      final result = await CliService.run('sdk update ${pkg.name}');
       if (result.success) updated++;
     }
 
@@ -213,32 +217,34 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'e.g. platforms/android-34',
+                hintText: 'e.g. platforms;android-34',
                 border: OutlineInputBorder(),
               ),
               autofocus: true,
+              onSubmitted: (v) {
+                if (v.trim().isNotEmpty) {
+                  Navigator.pop(context);
+                  _installPackage(v.trim());
+                }
+              },
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 4,
               runSpacing: 4,
               children: [
-                ActionChip(
-                  label: const Text('platforms;android-34', style: TextStyle(fontSize: 11)),
-                  onPressed: () => controller.text = 'platforms;android-34',
-                ),
-                ActionChip(
-                  label: const Text('build-tools;34.0.0', style: TextStyle(fontSize: 11)),
-                  onPressed: () => controller.text = 'build-tools;34.0.0',
-                ),
-                ActionChip(
-                  label: const Text('platform-tools', style: TextStyle(fontSize: 11)),
-                  onPressed: () => controller.text = 'platform-tools',
-                ),
-                ActionChip(
-                  label: const Text('emulator', style: TextStyle(fontSize: 11)),
-                  onPressed: () => controller.text = 'emulator',
-                ),
+                ActionChip(label: const Text('platforms;android-34', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'platforms;android-34'),
+                ActionChip(label: const Text('build-tools;34.0.0', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'build-tools;34.0.0'),
+                ActionChip(label: const Text('platform-tools', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'platform-tools'),
+                ActionChip(label: const Text('emulator', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'emulator'),
+                ActionChip(label: const Text('sources;android-34', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'sources;android-34'),
+                ActionChip(label: const Text('system-images', style: TextStyle(fontSize: 11)),
+                  onPressed: () => controller.text = 'system-images'),
               ],
             ),
           ],
@@ -260,57 +266,20 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
     );
   }
 
-  void _showPackageInfo(String name) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(name),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.inventory_2),
-              title: const Text('Package'),
-              subtitle: Text(name),
-              dense: true,
-            ),
-            ListTile(
-              leading: const Icon(Icons.category),
-              title: const Text('Type'),
-              subtitle: Text(name.contains(';') ? name.split(';').first : 'SDK Platform'),
-              dense: true,
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('Status'),
-              subtitle: const Text('Installed'),
-              dense: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Clipboard.setData(ClipboardData(text: name));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Package name copied')),
-              );
-            },
-            child: const Text('Copy Name'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _exportPackageList() {
-    final json = const JsonEncoder.withIndent('  ').convert(_packages);
+    final json = const JsonEncoder.withIndent('  ').convert(
+      _packages.map((p) => {'name': p.name, 'type': p.type, 'status': p.statusLabel}).toList(),
+    );
     Clipboard.setData(ClipboardData(text: json));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Package list copied to clipboard')),
+    );
+  }
+
+  void _copyPackageName(String name) {
+    Clipboard.setData(ClipboardData(text: name));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Package name copied')),
     );
   }
 
@@ -319,7 +288,7 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
       if (_selected.length == _filteredPackages.length) {
         _selected.clear();
       } else {
-        _selected = Set.from(_filteredPackages);
+        _selected = Set.from(_filteredPackages.map((p) => p.name));
       }
     });
   }
@@ -334,13 +303,27 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
     });
   }
 
+  void _cycleSort(String column) {
+    setState(() {
+      if (_sortBy == column) {
+        _sortAsc = !_sortAsc;
+      } else {
+        _sortBy = column;
+        _sortAsc = true;
+      }
+    });
+    _applyFilters();
+  }
+
   @override
   Widget build(BuildContext context) {
     final installedCount = _packages.length;
     final selectedCount = _selected.length;
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -349,7 +332,7 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
               const Icon(Icons.inventory_2, size: 32, color: Colors.teal),
               const SizedBox(width: 12),
               const Text('SDK Manager', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 12),
+              SizedBox(width: spacing),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -358,12 +341,23 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
                 ),
                 child: Text('$installedCount packages', style: const TextStyle(color: Colors.teal, fontSize: 12)),
               ),
+              if (selectedCount > 0) ...[
+                SizedBox(width: spacing * 0.5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text('$selectedCount selected', style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                ),
+              ],
               const Spacer(),
               if (selectedCount > 0)
                 TextButton.icon(
                   onPressed: _busy ? null : _updateAllPackages,
                   icon: const Icon(Icons.update, size: 16),
-                  label: Text('Update Selected ($selectedCount)'),
+                  label: const Text('Update Selected'),
                 ),
               IconButton(
                 icon: const Icon(Icons.copy),
@@ -384,7 +378,7 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing),
           Row(
             children: [
               Expanded(
@@ -409,33 +403,12 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
                   onChanged: (_) => _applyFilters(),
                 ),
               ),
-              const SizedBox(width: 12),
-              PopupMenuButton<String>(
-                icon: Badge(
-                  label: Text(_sortAsc ? 'A' : 'Z', style: const TextStyle(fontSize: 10)),
-                  child: const Icon(Icons.sort),
-                ),
-                onSelected: (value) {
-                  setState(() {
-                    if (_sortBy == value) {
-                      _sortAsc = !_sortAsc;
-                    } else {
-                      _sortBy = value;
-                      _sortAsc = true;
-                    }
-                  });
-                  _applyFilters();
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'name', child: Text('Sort by Name')),
-                ],
-              ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -448,88 +421,229 @@ class _SdkContentState extends State<SdkContent> with SingleTickerProviderStateM
             const Expanded(child: Center(child: Text('No packages found')))
           else
             Expanded(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    Container(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Checkbox(
-                          value: _selected.length == _filteredPackages.length,
-                          onChanged: (_) => _toggleSelectAll(),
-                        ),
-                        Text('${_selected.length}/${_filteredPackages.length} selected'),
-                        const Spacer(),
-                        if (_selected.isNotEmpty) ...[
-                          TextButton.icon(
-                            onPressed: _busy ? null : _updateAllPackages,
-                            icon: const Icon(Icons.update, size: 14),
-                            label: const Text('Update', style: TextStyle(fontSize: 12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 40,
+                            child: Checkbox(
+                              value: _selected.length == _filteredPackages.length && _filteredPackages.isNotEmpty,
+                              onChanged: (_) => _toggleSelectAll(),
+                            ),
                           ),
-                          TextButton.icon(
-                            onPressed: _busy ? null : () {
-                              for (final pkg in _selected) {
-                                _removePackage(pkg);
-                              }
-                            },
-                            icon: const Icon(Icons.delete, size: 14, color: Colors.red),
-                            label: const Text('Remove', style: TextStyle(fontSize: 12, color: Colors.red)),
+                          Expanded(
+                            flex: 4,
+                            child: InkWell(
+                              onTap: () => _cycleSort('name'),
+                              child: Row(
+                                children: [
+                                  const Text('Package', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  if (_sortBy == 'name')
+                                    Icon(_sortAsc ? Icons.arrow_upward : Icons.arrow_downward, size: 14),
+                                ],
+                              ),
+                            ),
                           ),
+                          Expanded(
+                            flex: 2,
+                            child: InkWell(
+                              onTap: () => _cycleSort('type'),
+                              child: Row(
+                                children: [
+                                  const Text('Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  if (_sortBy == 'type')
+                                    Icon(_sortAsc ? Icons.arrow_upward : Icons.arrow_downward, size: 14),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: InkWell(
+                              onTap: () => _cycleSort('status'),
+                              child: Row(
+                                children: [
+                                  const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  if (_sortBy == 'status')
+                                    Icon(_sortAsc ? Icons.arrow_upward : Icons.arrow_downward, size: 14),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 140, child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _filteredPackages.length,
-                      itemBuilder: (context, index) {
-                        final package = _filteredPackages[index];
-                        final isSelected = _selected.contains(package);
-                        return Card(
-                          child: ListTile(
-                            leading: Checkbox(
-                              value: isSelected,
-                              onChanged: (_) => _toggleSelection(package),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _filteredPackages.length,
+                        itemBuilder: (context, index) {
+                          final pkg = _filteredPackages[index];
+                          final isSelected = _selected.contains(pkg.name);
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.05) : null,
+                              border: Border(
+                                bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)),
+                              ),
                             ),
-                            title: Text(package, maxLines: 2, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(package.contains(';') ? package.split(';').first : 'SDK Platform',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            child: Row(
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.info_outline, size: 20),
-                                  onPressed: () => _showPackageInfo(package),
-                                  tooltip: 'Info',
+                                SizedBox(
+                                  width: 40,
+                                  child: Checkbox(
+                                    value: isSelected,
+                                    onChanged: (_) => _toggleSelection(pkg.name),
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.update, color: Colors.blue, size: 20),
-                                  onPressed: _busy ? null : () => _updatePackage(package),
-                                  tooltip: 'Update',
+                                Expanded(
+                                  flex: 4,
+                                  child: InkWell(
+                                    onTap: () => _copyPackageName(pkg.name),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      child: Text(pkg.name, style: const TextStyle(fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                                  onPressed: _busy ? null : () => _removePackage(package),
-                                  tooltip: 'Remove',
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: pkg.typeColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(pkg.type, style: TextStyle(fontSize: 11, color: pkg.typeColor),
+                                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        Icon(pkg.statusIcon, size: 14, color: pkg.statusColor),
+                                        const SizedBox(width: 4),
+                                        Text(pkg.statusLabel, style: TextStyle(fontSize: 11, color: pkg.statusColor)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(
+                                  width: 140,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          pkg.isInstalled ? Icons.update : Icons.download,
+                                          color: pkg.isInstalled ? Colors.blue : Colors.green,
+                                          size: 18,
+                                        ),
+                                        onPressed: _busy ? null : () => pkg.isInstalled ? _updatePackage(pkg.name) : _installPackage(pkg.name),
+                                        tooltip: pkg.isInstalled ? 'Update' : 'Install',
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.copy, size: 18),
+                                        onPressed: () => _copyPackageName(pkg.name),
+                                        tooltip: 'Copy',
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      if (pkg.isInstalled)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                                          onPressed: _busy ? null : () => _removePackage(pkg.name),
+                                          tooltip: 'Remove',
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
         ],
       ),
     );
+  }
+}
+
+class _PackageRow {
+  final String raw;
+  final String name;
+  final String type;
+  final bool isInstalled;
+
+  _PackageRow._(this.raw, this.name, this.type, this.isInstalled);
+
+  factory _PackageRow.fromRaw(String raw) {
+    final lower = raw.toLowerCase();
+    final installed = lower.contains('installed') || lower.contains('(installed)');
+    String type = 'SDK Platform';
+    if (lower.contains('build-tools')) {
+      type = 'Build Tools';
+    } else if (lower.contains('platform-tools')) {
+      type = 'Platform Tools';
+    } else if (lower.contains('emulator')) {
+      type = 'Emulator';
+    } else if (lower.contains('sources')) {
+      type = 'Sources';
+    } else if (lower.contains('system-images')) {
+      type = 'System Image';
+    } else if (lower.contains('cmdline-tools')) {
+      type = 'CLI Tools';
+    } else if (lower.contains('extras')) {
+      type = 'Extras';
+    } else if (lower.contains('patcher')) {
+      type = 'Patcher';
+    } else if (lower.contains('ndk')) {
+      type = 'NDK';
+    } else if (lower.contains('cmake')) {
+      type = 'CMake';
+    } else if (lower.contains('lldb')) {
+      type = 'LLDB';
+    }
+    return _PackageRow._(raw, raw, type, installed);
+  }
+
+  String get statusLabel => isInstalled ? 'Installed' : 'Available';
+
+  IconData get statusIcon => isInstalled ? Icons.check_circle : Icons.cloud_download;
+
+  Color get statusColor => isInstalled ? Colors.green : Colors.grey;
+
+  Color get typeColor {
+    switch (type) {
+      case 'Build Tools': return Colors.blue;
+      case 'Platform Tools': return Colors.teal;
+      case 'Emulator': return Colors.orange;
+      case 'Sources': return Colors.purple;
+      case 'System Image': return Colors.red;
+      case 'CLI Tools': return Colors.indigo;
+      case 'NDK': return Colors.brown;
+      case 'CMake': return Colors.cyan;
+      case 'LLDB': return Colors.deepOrange;
+      default: return Colors.teal;
+    }
   }
 }

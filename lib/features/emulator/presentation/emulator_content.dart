@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 import 'package:icefish/core/widgets/confirm_dialog.dart';
 
@@ -456,9 +457,11 @@ class _EmulatorContentState extends State<EmulatorContent> {
   @override
   Widget build(BuildContext context) {
     final runningCount = _running.length;
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -468,7 +471,7 @@ class _EmulatorContentState extends State<EmulatorContent> {
               const SizedBox(width: 12),
               const Text('Emulator', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               if (runningCount > 0) ...[
-                const SizedBox(width: 8),
+                SizedBox(width: spacing * 0.5),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -499,10 +502,10 @@ class _EmulatorContentState extends State<EmulatorContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 
 class HomeContent extends StatefulWidget {
@@ -61,8 +62,11 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -81,10 +85,10 @@ class _HomeContentState extends State<HomeContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -99,16 +103,16 @@ class _HomeContentState extends State<HomeContent> {
                 children: [
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: EdgeInsets.all(padding),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('Android CLI', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 16),
+                          SizedBox(height: spacing),
                           _InfoRow(icon: Icons.info_outline, label: 'Version', value: _cliVersion),
-                          const SizedBox(height: 12),
+                          SizedBox(height: spacing),
                           _InfoRow(icon: Icons.folder_outlined, label: 'SDK Path', value: _sdkPath),
-                          const SizedBox(height: 12),
+                          SizedBox(height: spacing),
                           _InfoRow(icon: Icons.rocket_launch, label: 'Launcher', value: _launcherVersion),
                         ],
                       ),

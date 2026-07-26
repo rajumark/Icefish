@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 
 class ScreenContent extends StatefulWidget {
@@ -571,8 +572,12 @@ class _ScreenContentState extends State<ScreenContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+    final isCompact = Responsive.isCompact(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -599,10 +604,10 @@ class _ScreenContentState extends State<ScreenContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -610,8 +615,8 @@ class _ScreenContentState extends State<ScreenContent> {
               ),
             ),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: spacing * 0.5,
+            runSpacing: spacing * 0.5,
             children: [
               ElevatedButton.icon(
                 onPressed: _busy ? null : _captureScreen,
@@ -637,91 +642,140 @@ class _ScreenContentState extends State<ScreenContent> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing),
           if (_lastTapCoords.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.only(bottom: spacing * 0.5),
               child: Text('Last tap: $_lastTapCoords', style: const TextStyle(fontSize: 12, color: Colors.grey)),
             ),
           Expanded(
-            child: Row(
-              children: [
-                if (_resolvedElement != null)
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text('UI Elements', style: TextStyle(fontWeight: FontWeight.bold)),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.copy, size: 16),
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: _resolvedElement!));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('UI hierarchy copied')),
-                                    );
-                                  },
-                                  tooltip: 'Copy',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                child: Text(_resolvedElement!, style: const TextStyle(fontSize: 12)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_resolvedElement != null && _screenshotPath != null) const SizedBox(width: 12),
-                if (_screenshotPath != null)
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                const Text('Screenshot', style: TextStyle(fontWeight: FontWeight.bold)),
-                                const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.copy, size: 16),
-                                  onPressed: _copyScreenshotPath,
-                                  tooltip: 'Copy Path',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: Image.file(
-                                File(_screenshotPath!),
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return const Center(child: Text('Failed to load image'));
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(_screenshotPath!, style: const TextStyle(fontSize: 10, color: Colors.grey),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+            child: isCompact
+                ? _buildCompactLayout(context, spacing)
+                : _buildExpandedLayout(context, spacing),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompactLayout(BuildContext context, double spacing) {
+    if (_resolvedElement != null) {
+      return Card(
+        child: Padding(
+          padding: EdgeInsets.all(spacing),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('UI Elements', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 16),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: _resolvedElement!));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('UI hierarchy copied')),
+                      );
+                    },
+                    tooltip: 'Copy',
+                  ),
+                ],
+              ),
+              SizedBox(height: spacing * 0.5),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Text(_resolvedElement!, style: const TextStyle(fontSize: 12)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_screenshotPath != null) {
+      return _buildScreenshotCard(context, spacing);
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildExpandedLayout(BuildContext context, double spacing) {
+    return Row(
+      children: [
+        if (_resolvedElement != null)
+          Expanded(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(spacing),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('UI Elements', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 16),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: _resolvedElement!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('UI hierarchy copied')),
+                            );
+                          },
+                          tooltip: 'Copy',
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: spacing * 0.5),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Text(_resolvedElement!, style: const TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (_resolvedElement != null && _screenshotPath != null) SizedBox(width: spacing),
+        if (_screenshotPath != null)
+          Expanded(child: _buildScreenshotCard(context, spacing)),
+      ],
+    );
+  }
+
+  Widget _buildScreenshotCard(BuildContext context, double spacing) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(spacing),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Text('Screenshot', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 16),
+                  onPressed: _copyScreenshotPath,
+                  tooltip: 'Copy Path',
+                ),
+              ],
+            ),
+            SizedBox(height: spacing * 0.5),
+            Expanded(
+              child: Image.file(
+                File(_screenshotPath!),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(child: Text('Failed to load image'));
+                },
+              ),
+            ),
+            SizedBox(height: spacing * 0.5),
+            Text(_screenshotPath!, style: const TextStyle(fontSize: 10, color: Colors.grey),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }

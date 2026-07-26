@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 
 class LayoutContent extends StatefulWidget {
@@ -225,8 +226,11 @@ class _LayoutContentState extends State<LayoutContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -245,7 +249,7 @@ class _LayoutContentState extends State<LayoutContent> {
                   ),
                   child: Text('$_viewCount views', style: const TextStyle(color: Colors.teal, fontSize: 12)),
                 ),
-              const SizedBox(width: 8),
+              SizedBox(width: spacing * 0.5),
               IconButton(
                 icon: const Icon(Icons.bar_chart),
                 onPressed: _busy ? null : _showStatsDialog,
@@ -253,10 +257,10 @@ class _LayoutContentState extends State<LayoutContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -277,7 +281,7 @@ class _LayoutContentState extends State<LayoutContent> {
                   enabled: !_busy,
                 ),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: spacing * 0.5),
               IconButton(
                 icon: Badge(
                   label: _filterType != 'all' ? const Text('1', style: TextStyle(fontSize: 10)) : null,
@@ -288,10 +292,10 @@ class _LayoutContentState extends State<LayoutContent> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: spacing * 0.5,
+            runSpacing: spacing * 0.5,
             children: [
               ElevatedButton.icon(
                 onPressed: _busy ? null : _getLayout,
@@ -317,7 +321,7 @@ class _LayoutContentState extends State<LayoutContent> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing * 0.5),
           Row(
             children: [
               Switch(
@@ -327,12 +331,12 @@ class _LayoutContentState extends State<LayoutContent> {
               const Text('Pretty Print'),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           if (_layoutTree != null)
             Expanded(
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(spacing),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -344,7 +348,7 @@ class _LayoutContentState extends State<LayoutContent> {
                             style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: spacing * 0.5),
                       Expanded(
                         child: SingleChildScrollView(
                           child: SelectableText(

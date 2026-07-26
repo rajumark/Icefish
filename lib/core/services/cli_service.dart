@@ -11,10 +11,21 @@ class CliResult {
   factory CliResult.fail(String error) => CliResult(success: false, output: '', error: error);
 }
 
-class CliService {
-  static Future<CliResult> run(String command) async {
+abstract class CliServiceInterface {
+  Future<CliResult> run(String command);
+  List<String> parseArgs(String command);
+}
+
+class CliServiceImpl implements CliServiceInterface {
+  CliServiceImpl._();
+
+  static final CliServiceImpl _instance = CliServiceImpl._();
+  factory CliServiceImpl() => _instance;
+
+  @override
+  Future<CliResult> run(String command) async {
     try {
-      final args = _parseArgs(command);
+      final args = parseArgs(command);
       final result = await Process.run('android', args).timeout(
         const Duration(minutes: 5),
         onTimeout: () => ProcessResult(-1, -1, '', 'Command timed out'),
@@ -33,7 +44,8 @@ class CliService {
     }
   }
 
-  static List<String> _parseArgs(String command) {
+  @override
+  List<String> parseArgs(String command) {
     final args = <String>[];
     final buffer = StringBuffer();
     var inQuotes = false;
@@ -67,4 +79,15 @@ class CliService {
 
     return args;
   }
+}
+
+class CliService {
+  static CliServiceInterface _current = CliServiceImpl();
+
+  static CliServiceInterface get current => _current;
+  static set current(CliServiceInterface value) { _current = value; }
+
+  static Future<CliResult> run(String command) => _current.run(command);
+  static List<String> parseArgs(String command) => _current.parseArgs(command);
+  static void reset() { _current = CliServiceImpl(); }
 }

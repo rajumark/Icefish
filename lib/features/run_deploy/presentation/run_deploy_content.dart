@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 import 'package:icefish/core/widgets/confirm_dialog.dart';
 
@@ -407,8 +408,11 @@ class _RunDeployContentState extends State<RunDeployContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -430,10 +434,10 @@ class _RunDeployContentState extends State<RunDeployContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -446,7 +450,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                 children: [
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(spacing),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -464,7 +468,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                                 ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: spacing * 0.5),
                           if (_devices.isEmpty)
                             const Text('No devices connected', style: TextStyle(color: Colors.grey))
                           else
@@ -492,10 +496,10 @@ class _RunDeployContentState extends State<RunDeployContent> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing),
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(spacing),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -515,7 +519,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: spacing * 0.5),
                           TextField(
                             controller: _apksController,
                             decoration: const InputDecoration(
@@ -525,7 +529,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                             ),
                             enabled: !_busy,
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: spacing),
                           TextField(
                             controller: _packageNameController,
                             decoration: const InputDecoration(
@@ -535,7 +539,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                             ),
                             enabled: !_busy,
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: spacing),
                           TextField(
                             controller: _activityController,
                             decoration: const InputDecoration(
@@ -549,15 +553,15 @@ class _RunDeployContentState extends State<RunDeployContent> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: spacing),
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.all(spacing),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('Options', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
+                          SizedBox(height: spacing * 0.5),
                           SegmentedButton<String>(
                             segments: const [
                               ButtonSegment(value: 'debug', label: Text('Debug'), icon: Icon(Icons.bug_report, size: 16)),
@@ -566,7 +570,7 @@ class _RunDeployContentState extends State<RunDeployContent> {
                             selected: {_buildVariant},
                             onSelectionChanged: _busy ? null : (v) => setState(() => _buildVariant = v.first),
                           ),
-                          const SizedBox(height: 12),
+                          SizedBox(height: spacing),
                           SwitchListTile(
                             title: const Text('Uninstall First'),
                             subtitle: const Text('Remove old app before install'),

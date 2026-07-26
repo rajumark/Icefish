@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 import 'package:icefish/core/widgets/confirm_dialog.dart';
 
@@ -183,8 +184,11 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
 
   @override
   Widget build(BuildContext context) {
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -208,10 +212,10 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
@@ -255,7 +259,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                         enabled: !_busy,
                         onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: spacing),
                       TextField(
                         controller: _orgController,
                         decoration: const InputDecoration(
@@ -265,7 +269,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                         ),
                         enabled: !_busy,
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: spacing),
                       TextField(
                         controller: _descController,
                         decoration: const InputDecoration(
@@ -302,7 +306,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: spacing),
                       TextField(
                         controller: _templateSearchController,
                         decoration: const InputDecoration(
@@ -313,7 +317,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                         ),
                         enabled: !_busy,
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: spacing * 0.5),
                       if (_loading)
                         const Center(child: CircularProgressIndicator())
                       else
@@ -353,7 +357,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                               enabled: !_busy,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: spacing),
                           Expanded(
                             child: TextField(
                               controller: _outputController,
@@ -367,7 +371,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: spacing),
                       SwitchListTile(
                         title: const Text('Initialize Git'),
                         value: _gitInit,

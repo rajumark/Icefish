@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
+import 'package:icefish/core/utils/responsive.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
 import 'package:icefish/core/widgets/confirm_dialog.dart';
 
@@ -321,9 +322,11 @@ class _SkillsContentState extends State<SkillsContent> {
   Widget build(BuildContext context) {
     final skillCount = _skills.length;
     final selectedCount = _selected.length;
+    final padding = Responsive.contentPadding(context);
+    final spacing = Responsive.cardSpacing(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(padding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -332,7 +335,7 @@ class _SkillsContentState extends State<SkillsContent> {
               const Icon(Icons.extension, size: 32, color: Colors.teal),
               const SizedBox(width: 12),
               const Text('Skills', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 12),
+              SizedBox(width: spacing),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -368,7 +371,7 @@ class _SkillsContentState extends State<SkillsContent> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing),
           TextField(
             controller: _searchController,
             decoration: InputDecoration(
@@ -388,10 +391,10 @@ class _SkillsContentState extends State<SkillsContent> {
             ),
             onSubmitted: _findSkills,
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 1.5),
           if (_status.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: EdgeInsets.only(bottom: spacing),
               child: StatusBanner(
                 message: _status,
                 type: _statusType,
