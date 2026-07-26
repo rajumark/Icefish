@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:icefish/core/services/cli_service.dart';
 import 'package:icefish/core/widgets/status_banner.dart';
+import 'package:icefish/core/widgets/confirm_dialog.dart';
 
 class CreateProjectContent extends StatefulWidget {
   const CreateProjectContent({super.key});
@@ -15,23 +17,42 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
   StatusType _statusType = StatusType.info;
   String _status = '';
   List<String> _templates = [];
+  List<String> _filteredTemplates = [];
   final _nameController = TextEditingController();
+  final _orgController = TextEditingController();
+  final _descController = TextEditingController();
   final _minSdkController = TextEditingController(text: '21');
   final _outputController = TextEditingController();
+  final _templateSearchController = TextEditingController();
   String? _selectedTemplate;
+  bool _gitInit = true;
+  int _currentStep = 0;
 
   @override
   void initState() {
     super.initState();
     _loadTemplates();
+    _templateSearchController.addListener(_filterTemplates);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _orgController.dispose();
+    _descController.dispose();
     _minSdkController.dispose();
     _outputController.dispose();
+    _templateSearchController.dispose();
     super.dispose();
+  }
+
+  void _filterTemplates() {
+    final query = _templateSearchController.text.toLowerCase();
+    setState(() {
+      _filteredTemplates = _templates.where((t) =>
+        query.isEmpty || t.toLowerCase().contains(query)
+      ).toList();
+    });
   }
 
   Future<void> _loadTemplates() async {
@@ -54,6 +75,7 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
             if (name.isNotEmpty) _templates.add(name);
           }
         }
+        _filteredTemplates = List.from(_templates);
         if (_templates.isNotEmpty) {
           _selectedTemplate = _templates.first;
         }
@@ -76,7 +98,25 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
       return;
     }
 
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9_-]*$').hasMatch(name)) {
+      setState(() {
+        _status = 'Project name must start with letter, use only letters, numbers, _ or -';
+        _statusType = StatusType.error;
+      });
+      return;
+    }
+
     if (!mounted || _busy) return;
+
+    final confirm = await ConfirmDialog.show(
+      context: context,
+      title: 'Create Project',
+      message: 'Create project "$name" with ${_selectedTemplate ?? "default"} template?',
+      confirmLabel: 'Create',
+      confirmColor: Colors.green,
+    );
+
+    if (!confirm) return;
 
     setState(() {
       _busy = true;
@@ -85,6 +125,12 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
     });
 
     final args = StringBuffer('create --name="$name"');
+    if (_orgController.text.isNotEmpty) {
+      args.write(' --org=${_orgController.text}');
+    }
+    if (_descController.text.isNotEmpty) {
+      args.write(' --description="${_descController.text}"');
+    }
     if (_minSdkController.text.isNotEmpty) {
       args.write(' --minSdk=${_minSdkController.text}');
     }
@@ -98,6 +144,14 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
     final result = await CliService.run(args.toString());
     if (!mounted) return;
 
+    if (result.success && _gitInit) {
+      setState(() => _status = 'Initializing git...');
+      final projectPath = _outputController.text.isNotEmpty
+          ? '${_outputController.text}/$name'
+          : name;
+      await CliService.run('create --git-init --path=$projectPath');
+    }
+
     setState(() {
       _busy = false;
       if (result.success) {
@@ -107,6 +161,23 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
         _status = result.error;
         _statusType = StatusType.error;
       }
+    });
+  }
+
+  void _copyProjectPath() {
+    final path = _outputController.text.isNotEmpty
+        ? '${_outputController.text}/${_nameController.text}'
+        : _nameController.text;
+    Clipboard.setData(ClipboardData(text: path));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Project path copied')),
+    );
+  }
+
+  void _selectPreset(String template, String minSdk) {
+    setState(() {
+      _selectedTemplate = template;
+      _minSdkController.text = minSdk;
     });
   }
 
@@ -123,6 +194,11 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
               const SizedBox(width: 12),
               const Text('Create Project', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: _nameController.text.isEmpty ? null : _copyProjectPath,
+                tooltip: 'Copy Path',
+              ),
               IconButton(
                 icon: _loading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
@@ -142,82 +218,167 @@ class _CreateProjectContentState extends State<CreateProjectContent> {
                 onDismiss: () => setState(() => _status = ''),
               ),
             ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Project Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Project Name',
-                      hintText: 'My App',
-                      border: OutlineInputBorder(),
-                    ),
-                    enabled: !_busy,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
+          Expanded(
+            child: Stepper(
+              currentStep: _currentStep,
+              onStepContinue: () {
+                if (_currentStep < 2) {
+                  setState(() => _currentStep++);
+                } else {
+                  _createProject();
+                }
+              },
+              onStepCancel: () {
+                if (_currentStep > 0) {
+                  setState(() => _currentStep--);
+                }
+              },
+              steps: [
+                Step(
+                  title: const Text('Project Info'),
+                  isActive: _currentStep >= 0,
+                  content: Column(
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _minSdkController,
-                          decoration: const InputDecoration(
-                            labelText: 'Min SDK',
-                            hintText: '21',
-                            border: OutlineInputBorder(),
-                          ),
-                          enabled: !_busy,
+                      TextField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Project Name *',
+                          hintText: 'my_app',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _nameController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 20),
+                                  onPressed: () => _nameController.clear(),
+                                )
+                              : null,
                         ),
+                        enabled: !_busy,
+                        onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _outputController,
-                          decoration: const InputDecoration(
-                            labelText: 'Output Path (optional)',
-                            hintText: './my-app',
-                            border: OutlineInputBorder(),
-                          ),
-                          enabled: !_busy,
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _orgController,
+                        decoration: const InputDecoration(
+                          labelText: 'Organization',
+                          hintText: 'com.example',
+                          border: OutlineInputBorder(),
                         ),
+                        enabled: !_busy,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _descController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          hintText: 'A new Flutter project',
+                          border: OutlineInputBorder(),
+                        ),
+                        enabled: !_busy,
+                        maxLines: 2,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  if (_loading)
-                    const Center(child: CircularProgressIndicator())
-                  else
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedTemplate,
-                      decoration: const InputDecoration(
-                        labelText: 'Template',
-                        border: OutlineInputBorder(),
+                ),
+                Step(
+                  title: const Text('Template'),
+                  isActive: _currentStep >= 1,
+                  content: Column(
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ActionChip(
+                            label: const Text('Quick: Empty', style: TextStyle(fontSize: 12)),
+                            onPressed: () => _selectPreset('empty', '21'),
+                          ),
+                          ActionChip(
+                            label: const Text('Quick: Full', style: TextStyle(fontSize: 12)),
+                            onPressed: () => _selectPreset('full', '21'),
+                          ),
+                          ActionChip(
+                            label: const Text('Quick: Minimal', style: TextStyle(fontSize: 12)),
+                            onPressed: () => _selectPreset('minimal', '19'),
+                          ),
+                        ],
                       ),
-                      items: _templates.map((t) => DropdownMenuItem(
-                        value: t,
-                        child: Text(t),
-                      )).toList(),
-                      onChanged: _busy ? null : (value) {
-                        if (value != null) setState(() => _selectedTemplate = value);
-                      },
-                    ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _busy ? null : _createProject,
-                      icon: _busy
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.create),
-                      label: Text(_busy ? 'Creating...' : 'Create Project'),
-                    ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _templateSearchController,
+                        decoration: const InputDecoration(
+                          hintText: 'Search templates...',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        enabled: !_busy,
+                      ),
+                      const SizedBox(height: 8),
+                      if (_loading)
+                        const Center(child: CircularProgressIndicator())
+                      else
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedTemplate,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Template',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: _filteredTemplates.map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t),
+                          )).toList(),
+                          onChanged: _busy ? null : (value) {
+                            if (value != null) setState(() => _selectedTemplate = value);
+                          },
+                        ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Step(
+                  title: const Text('Options'),
+                  isActive: _currentStep >= 2,
+                  content: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _minSdkController,
+                              decoration: const InputDecoration(
+                                labelText: 'Min SDK',
+                                hintText: '21',
+                                border: OutlineInputBorder(),
+                              ),
+                              enabled: !_busy,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: _outputController,
+                              decoration: const InputDecoration(
+                                labelText: 'Output Path',
+                                hintText: './projects',
+                                border: OutlineInputBorder(),
+                              ),
+                              enabled: !_busy,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: const Text('Initialize Git'),
+                        value: _gitInit,
+                        onChanged: _busy ? null : (v) => setState(() => _gitInit = v),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
